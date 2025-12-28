@@ -19,19 +19,15 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Configure iOS Project # <--- 添加这一步，强制生成 iOS 工程文件
+        run: flutter create --platforms=ios .
+
       - name: Build IPA (Unsigned)
         run: |
-          # 关键步骤：不签名直接构建打包
+          # 这一行是关键，确保进入工程目录（如果是嵌套目录的话）
           flutter build ios --release --no-codesign
           
-          # 将构建产物转存到 Payload 文件夹并压缩为 .ipa 格式
           mkdir -p build/ios/iphoneos/Payload
-          mv build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
           cd build/ios/iphoneos
           zip -r my-browser.ipa Payload
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: build/ios/iphoneos/my-browser.ipa
