@@ -24,10 +24,14 @@ jobs:
 
       - name: Build IPA (Unsigned)
         run: |
-          # 这一行是关键，确保进入工程目录（如果是嵌套目录的话）
           flutter build ios --release --no-codesign
-          
-          mkdir -p build/ios/iphoneos/Payload
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
+          mkdir -p Payload
+          # 自动寻找编译出的 .app 并放入 Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
           zip -r my-browser.ipa Payload
+
+      - name: Upload Artifact  # <--- 必须确保有这一步
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa       # 下载时显示的名字
+          path: my-browser.ipa # 要上传的文件路径
