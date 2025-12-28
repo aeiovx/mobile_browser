@@ -1,83 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-void main() {
-  runApp(const MaterialApp(home: BrowserApp()));
-}
+void main() => runApp(const MaterialApp(home: MyBrowser()));
 
-class BrowserApp extends StatefulWidget {
-  const BrowserApp({super.key});
+class MyBrowser extends StatefulWidget {
+  const MyBrowser({super.key});
 
   @override
-  State<BrowserApp> createState() => _BrowserAppState();
+  State<MyBrowser> createState() => _MyBrowserState();
 }
 
-class _BrowserAppState extends State<BrowserApp> {
-  late final WebViewController _controller;
+class _MyBrowserState extends State<MyBrowser> {
+  late final WebViewController controller;
+  // 用于控制地址栏文本的内容
+  final TextEditingController _urlController = TextEditingController(text: 'https://www.google.com');
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
+    controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('https://www.google.com/search?q=google.com'));
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          // 当网页开始加载时，自动更新地址栏的文本
+          onPageStarted: (String url) {
+            setState(() {
+              _urlController.text = url;
+            });
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(_urlController.text));
+  }
+
+  // 处理网址输入的函数
+  void _loadUrl() {
+    String url = _urlController.text.trim();
+    if (!url.startsWith('http')) {
+      url = 'https://$url'; // 如果没写 http，自动补全
+    }
+    controller.loadRequest(Uri.parse(url));
+    FocusScope.of(context).unfocus(); // 输入后收起键盘
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(toolbarHeight: 0), // Hide app bar but keep status bar color control if needed
-      body: SafeArea(
-        child: WebViewWidget(controller: _controller),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.arrow_back),
-            label: 'Back',
+      appBar: AppBar(
+        // 将输入框放在标题位置
+        title: TextField(
+          controller: _urlController,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            hintText: '输入网址...',
+            border: InputBorder.none,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.arrow_forward),
-            label: 'Forward',
+          onSubmitted: (_) => _loadUrl(), // 按下回车键加载网页
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _loadUrl,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.refresh),
-            label: 'Refresh',
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => controller.reload(),
           ),
         ],
-        onTap: (index) async {
-          switch (index) {
-            case 0:
-              if (await _controller.canGoBack()) {
-                await _controller.goBack();
-              } else {
-                if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No back history')),
-                  );
-                }
-              }
-              break;
-            case 1:
-              if (await _controller.canGoForward()) {
-                await _controller.goForward();
-              } else {
-                 if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No forward history')),
-                  );
-                }
-              }
-              break;
-            case 2:
-              await _controller.reload();
-              break;
-          }
-        },
       ),
-    );
-  }
-}
+      body: WebViewWidget(controller: controller),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
